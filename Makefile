@@ -23,11 +23,18 @@ LDFLAGS=-Wall
 
 
 
-interp: obj/main.o
-	g++ ${LDFLAGS} -o interp  obj/main.o -ldl
+interp: obj/main.o obj/xmlinterp.o
+	g++ ${LDFLAGS} -o interp  obj/main.o obj/xmlinterp.o -ldl -lxerces-c
+
+obj/xmlinterp.o: src/main.cpp inc/AbstractInterp4Command.hh inc/AbstractScene.hh\
+            inc/AbstractComChannel.hh inc/Port.hh inc/AccessControl.hh\
+			inc/Configuration.hh inc/xmlinterp.hh
+	g++ -c ${CPPFLAGS} -o obj/xmlinterp.o src/xmlinterp.cpp
+
 
 obj/main.o: src/main.cpp inc/AbstractInterp4Command.hh inc/AbstractScene.hh\
-            inc/AbstractComChannel.hh
+            inc/AbstractComChannel.hh inc/Port.hh inc/AccessControl.hh\
+			inc/Configuration.hh inc/xmlinterp.hh
 	g++ -c ${CPPFLAGS} -o obj/main.o src/main.cpp
 
 doc:
@@ -63,4 +70,3 @@ help:
 	@echo "  make           # kompilacja i uruchomienie programu."
 	@echo "  make clean     # usuwa produkty kompilacji."
 	@echo
- 
