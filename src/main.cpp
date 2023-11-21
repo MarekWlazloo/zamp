@@ -151,7 +151,7 @@ bool ExecActions(istream &IStrm4Cmds, AbstractInterp4Command* &rInterp, Set4LibI
 
     return true;
 }
-
+//qweqwe
 
 int main(int argc, char **argv)
 {
