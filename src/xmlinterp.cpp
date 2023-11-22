@@ -4,20 +4,17 @@
 #include <sstream>
 #include <cstdlib>
 #include <iostream>
+#include <algorithm>
 
 
 
 using namespace std;
-using namespace xercesc;
 
-
+// std::list<int> destinationList = sourceList;
 /*!
  * Konstruktor klasy. Tutaj należy zainicjalizować wszystkie
  * dodatkowe pola.
  */
-XMLInterp4Config::XMLInterp4Config(Configuration &rConfig)
-{
-}
 
 
 /*!
@@ -64,7 +61,11 @@ void XMLInterp4Config::ProcessLibAttrs(const xercesc::Attributes  &rAttrs)
  XMLSize_t  Size = 0;
  char* sLibName = xercesc::XMLString::transcode(rAttrs.getValue(Size));
 
- libs.push_front(sLibName);
+ // rConfig.libs.push_back(sLibName);
+char* copiedLibName = new char[strlen(sLibName) + 1];
+strcpy(copiedLibName, sLibName);
+
+rConfig.libs.push_back(copiedLibName);
 
  cout << "  Nazwa biblioteki: " << sLibName << endl;
 
@@ -80,81 +81,69 @@ void XMLInterp4Config::ProcessLibAttrs(const xercesc::Attributes  &rAttrs)
  * to pobiera wartości atrybutów (w postaci napisów) i przekazuje ...
  * \param[in] rAttrs - atrybuty elementu XML \p "Cube".
  */
-void XMLInterp4Config::ProcessCubeAttrs(const xercesc::Attributes  &rAttrs)
+void XMLInterp4Config::ProcessCubeAttrs(const xercesc::Attributes& rAttrs)
 {
- if (rAttrs.getLength() < 1) {
-      cerr << "Zla ilosc atrybutow dla \"Cube\"" << endl;
-      exit(1);
- }
+    if (rAttrs.getLength() < 1) {
+        cerr << "Zla ilosc atrybutow dla \"Cube\"" << endl;
+        exit(1);
+    }
 
- /*
-  *  Tutaj pobierane sa nazwy pierwszego i drugiego atrybuty.
-  *  Sprawdzamy, czy na pewno jest to Name i Value.
-  */
+    char* sName_Name = xercesc::XMLString::transcode(rAttrs.getQName(0));
+    XMLSize_t Index = 0;
 
- char* sName_Name = xercesc::XMLString::transcode(rAttrs.getQName(0));
- char* sName_Shift = xercesc::XMLString::transcode(rAttrs.getQName(1));
- char* sName_Scale = xercesc::XMLString::transcode(rAttrs.getQName(2));
-//  char* sName_Rot = xercesc::XMLString::transcode(rAttrs.getQName(3));
-//  char* sName_Trans = xercesc::XMLString::transcode(rAttrs.getQName(4));
-//  char* sName_RGB = xercesc::XMLString::transcode(rAttrs.getQName(5));
+    // Sprawdzamy, czy pierwszy atrybut to "Name"
+    if (strcmp(sName_Name, "Name") != 0) {
+        cerr << "Zly atrybut dla \"Cube\"" << endl;
+        exit(1);
+    }
 
- XMLSize_t  Index = 0;
- char* sValue_Name    = xercesc::XMLString::transcode(rAttrs.getValue(Index));
- char* sValue_Shift = xercesc::XMLString::transcode(rAttrs.getValue(1));
- char* sValue_Scale     = xercesc::XMLString::transcode(rAttrs.getValue(2));
-//  char* sValue_Rot= xercesc::XMLString::transcode(rAttrs.getQName(3));
-//  char* sValue_Trans= xercesc::XMLString::transcode(rAttrs.getQName(4));
-//  char* sValue_RGB = xercesc::XMLString::transcode(rAttrs.getQName(5));
- ObjNames.push_front(sValue_Name);
- ObjShift.push_front(sValue_Shift);
- ObjScale.push_front(sValue_Scale);
- //-----------------------------------------------------------------------------
- // Wyświetlenie nazw atrybutów i ich "wartości"
- //
- cout << " Atrybuty:" << endl
-      << "     " << sName_Name << " = \"" << sValue_Name << "\"" << endl
-      << "     " << sName_Shift << " = \"" << sValue_Shift << "\"" << endl
-      << "     " << sName_Scale << " = \"" << sValue_Scale << "\"" << endl   
-      // << "     " << sName_Rot << " = \"" << sValue_Rot << "\"" << endl   
-      // << "     " << sName_Trans << " = \"" << sValue_Trans << "\"" << endl   
-      // << "     " << sName_RGB << " = \"" << sValue_RGB << "\"" << endl   
-      << endl; 
- //-----------------------------------------------------------------------------
- // Przykład czytania wartości parametrów
- // Ten przykład jest zrobiony "na piechotę" wykorzystując osobne zmienne.
- // Skala powinna być wektorem. Czytanie powinno być rezlizowane z wykorzysaniem
- // wektorów, np.
- //
- //
- // istringstream IStrm;
- // IStrm.str(sValue_Scale);
- // Vector3D  Scale;
- //
- // IStrm >> Scale;
- //
- istringstream   IStrm;
- 
- IStrm.str(sValue_Scale);
- double  Sx,Sy,Sz;
+    char* sValue_Name = xercesc::XMLString::transcode(rAttrs.getValue(Index));
 
- IStrm >> Sx >> Sy >> Sz;
- if (IStrm.fail()) {
-     cerr << " Blad!!!" << endl;
- } else {
-     cout << " Czytanie wartosci OK!!!" << endl;
-     cout << "     " << Sx << "  " << Sy << "  " << Sz << endl;
- }
+    // Kopiujemy nazwę obiektu do listy ObjNames
+    char* name = new char[strlen(sValue_Name) + 1];
+    strcpy(name, sValue_Name);
+    rConfig.ObjNames.push_back(name);
 
- // Tu trzeba wstawić odpowiednio własny kod ...
+    // Przechodzimy przez resztę atrybutów
+    for (Index = 1; Index < rAttrs.getLength(); ++Index) {
+        char* sName_Attr = xercesc::XMLString::transcode(rAttrs.getQName(Index));
+        char* sValue_Attr = xercesc::XMLString::transcode(rAttrs.getValue(Index));
 
- xercesc::XMLString::release(&sName_Name);
- xercesc::XMLString::release(&sName_Shift);
- xercesc::XMLString::release(&sName_Scale);
- xercesc::XMLString::release(&sValue_Name);
- xercesc::XMLString::release(&sValue_Shift);
- xercesc::XMLString::release(&sValue_Scale);
+        // Tutaj możesz zastosować bardziej czytelną logikę, aby sprawdzić każdy atrybut
+        // i dodać wartość do odpowiedniej listy
+
+        if (strcmp(sName_Attr, "Shift") == 0) {
+            char* copy = new char[strlen(sValue_Attr) + 1];
+            strcpy(copy, sValue_Attr);
+            rConfig.ObjShift.push_back(copy);
+        } else if (strcmp(sName_Attr, "Scale") == 0) {
+            char* copy = new char[strlen(sValue_Attr) + 1];
+            strcpy(copy, sValue_Attr);
+            rConfig.ObjScale.push_back(copy);
+        } else if (strcmp(sName_Attr, "RotXYZ_deg") == 0) {
+            char* copy = new char[strlen(sValue_Attr) + 1];
+            strcpy(copy, sValue_Attr);
+            rConfig.ObjRotXYZ_deg.push_back(copy);
+        } else if (strcmp(sName_Attr, "Trans_m") == 0) {
+            char* copy = new char[strlen(sValue_Attr) + 1];
+            strcpy(copy, sValue_Attr);
+            rConfig.ObjTrans_m.push_back(copy);
+        } else if (strcmp(sName_Attr, "RGB") == 0) {
+            char* copy = new char[strlen(sValue_Attr) + 1];
+            strcpy(copy, sValue_Attr);
+            rConfig.ObjRGB.push_back(copy);
+        }
+
+        // Zwolnienie zaalokowanej pamięci
+        xercesc::XMLString::release(&sName_Attr);
+        xercesc::XMLString::release(&sValue_Attr);
+    }
+
+    // Zwolnienie zaalokowanej pamięci
+    xercesc::XMLString::release(&sName_Name);
+    xercesc::XMLString::release(&sValue_Name);
 }
+
 
 
 
@@ -331,84 +320,4 @@ void XMLInterp4Config::warning(const xercesc::SAXParseException&  rException)
    * Tutaj należy wstawić odpowiedni kod. Tekst wyświetlany powyżej
    * jest tylko "atrapą".
    */
-}
-
-/*!
- * Czyta z pliku opis poleceń i dodaje je do listy komend,
- * które robot musi wykonać.
- * \param sFileName - (\b we.) nazwa pliku z opisem poleceń.
- * \param CmdList - (\b we.) zarządca listy poleceń dla robota.
- * \retval true - jeśli wczytanie zostało zrealizowane poprawnie,
- * \retval false - w przeciwnym przypadku.
- */
-bool ReadFile(const char* sFileName, Configuration &rConfig)
-{
-   try {
-            XMLPlatformUtils::Initialize();
-   }
-   catch (const XMLException& toCatch) {
-            char* message = XMLString::transcode(toCatch.getMessage());
-            cerr << "Error during initialization! :\n";
-            cerr << "Exception message is: \n"
-                 << message << "\n";
-            XMLString::release(&message);
-            return 1;
-   }
-
-   SAX2XMLReader* pParser = XMLReaderFactory::createXMLReader();
-
-   pParser->setFeature(XMLUni::fgSAX2CoreNameSpaces, true);
-   pParser->setFeature(XMLUni::fgSAX2CoreValidation, true);
-   pParser->setFeature(XMLUni::fgXercesDynamic, false);
-   pParser->setFeature(XMLUni::fgXercesSchema, true);
-   pParser->setFeature(XMLUni::fgXercesSchemaFullChecking, true);
-
-   pParser->setFeature(XMLUni::fgXercesValidationErrorAsFatal, true);
-
-   DefaultHandler* pHandler = new XMLInterp4Config(rConfig);
-   pParser->setContentHandler(pHandler);
-   pParser->setErrorHandler(pHandler);
-
-   try {
-     
-     if (!pParser->loadGrammar("config/config.xsd",
-                              xercesc::Grammar::SchemaGrammarType,true)) {
-       cerr << "!!! Plik grammar/actions.xsd, '" << endl
-            << "!!! ktory zawiera opis gramatyki, nie moze zostac wczytany."
-            << endl;
-       return false;
-     }
-     pParser->setFeature(XMLUni::fgXercesUseCachedGrammarInParse,true);
-     pParser->parse(sFileName);
-   }
-   catch (const XMLException& Exception) {
-            char* sMessage = XMLString::transcode(Exception.getMessage());
-            cerr << "Informacja o wyjatku: \n"
-                 << "   " << sMessage << "\n";
-            XMLString::release(&sMessage);
-            return false;
-   }
-   catch (const SAXParseException& Exception) {
-            char* sMessage = XMLString::transcode(Exception.getMessage());
-            char* sSystemId = xercesc::XMLString::transcode(Exception.getSystemId());
-
-            cerr << "Blad! " << endl
-                 << "    Plik:  " << sSystemId << endl
-                 << "   Linia: " << Exception.getLineNumber() << endl
-                 << " Kolumna: " << Exception.getColumnNumber() << endl
-                 << " Informacja: " << sMessage 
-                 << endl;
-
-            XMLString::release(&sMessage);
-            XMLString::release(&sSystemId);
-            return false;
-   }
-   catch (...) {
-            cout << "Zgloszony zostal nieoczekiwany wyjatek!\n" ;
-            return false;
-   }
-
-   delete pParser;
-   delete pHandler;
-   return true;
 }

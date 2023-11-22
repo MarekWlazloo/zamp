@@ -10,11 +10,6 @@
 #include <xercesc/sax2/Attributes.hpp>
 #include <xercesc/sax2/DefaultHandler.hpp>
 
-#include <xercesc/sax2/SAX2XMLReader.hpp>
-#include <xercesc/sax2/XMLReaderFactory.hpp>
-#include <xercesc/sax2/DefaultHandler.hpp>
-#include <xercesc/util/XMLString.hpp>
-
 //XERCES_CPP_NAMESPACE_USE
 
 #include "Configuration.hh"
@@ -33,17 +28,11 @@ class XMLInterp4Config : public xercesc::DefaultHandler {
   //tu ma sie pojawic lista przechowująca bilbioteki oraz inne wczytane parametry z pliku xml
   //std::list<char*> libs;
   public:
-  std::list<char*> libs;
-  std::list<char*> ObjNames;
-  std::list<char*> ObjShift;
-  std::list<char*> ObjScale;
-  std::list<char*> ObjRotXYZ_deg;
-  std::list<char*> ObjTrans_m;
-  std::list<char*> ObjRGB;
+  Configuration& rConfig;
    /*!
     * \brief Inicjalizuje obiekt i kojarzy go z listą poleceń robota
     */
-  XMLInterp4Config(Configuration &rConfig);
+  XMLInterp4Config(Configuration& config) : rConfig(config) {}
    /*!
     * \brief Wywoływana jest na początku dokumentu
     */
@@ -101,6 +90,5 @@ class XMLInterp4Config : public xercesc::DefaultHandler {
     void ProcessCubeAttrs(const xercesc::Attributes&   rAttrs); 
   private:
 };
-bool ReadFile(const char* sFileName, Configuration &rConfig);
 
 #endif
