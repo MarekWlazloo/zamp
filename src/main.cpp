@@ -32,6 +32,9 @@
 #include <mutex>
 #include <thread>
 #include <fstream>
+#include <memory>
+#include <thread>
+#include <vector>
 
 #define LINE_SIZE 500
 using namespace std;
@@ -318,12 +321,27 @@ int main(int argc, char **argv)
   Th1.join();
   Th2.join();*/
 
-  
+  istringstream IStrm4Cmds;
   Configuration Config;
-
   Set4LibInterface Libs;
+
   Libs.init();
 
+  if(argc < 2){
+    cerr << "ERROR" << endl;
+    return 1;
+  }
+
+  if(!ExecPreprocesor(argv[1], IStrm4Cmds)){
+    cerr << "ERROR" << endl;
+    return 2;
+  }
+    AbstractInterp4Command *pCmdS = nullptr;
+
+  cout << "Wczytanie parametrów z pliku do odpowiednich wtyczek, wyświetlenie wczytanych parametrów" << endl;
+  cout << endl;
+  ExecActions(IStrm4Cmds,pCmdS, Libs);
+/*
     if (!ReadFile("config/config.xml", Config)) {
         cout << "Błąd przetwarzania pliku XML." << endl;
         return 1;
@@ -387,7 +405,7 @@ cout << "UWAGASAFAWKMEMWQOKEMIWQNEQW" << endl;
 string str = GenerateConfigCmds(Config);
 std::vector<char> Buffer(str.begin(), str.end());
 Buffer.push_back('\0');
-const char *sConfigCmds = Buffer.data();
+const char *sConfigCmds = Buffer.data();*/
 
  /*const char *sConfigCmds =
 "Clear\n"
@@ -456,10 +474,6 @@ const char *sConfigCmds = Buffer.data();
   cout << endl;
   ExecActions(IStrm4Cmds,pCmdS, Libs);
 
- // if(!ExecActions(IStrm4Cmds,*pCmd)){
- //  cerr << "ERROR" << endl;
- //  return 3;
- // }
 */
 }
 /*
@@ -476,3 +490,83 @@ ROBISZ TO DO CZASU NAPOTKANIA NA end_parallel_actions
 gdy napotkasz na end parallel to poczekaj na wykonanie wszystkich wątków i usun kolekcje interpreterow
 
 */
+bool Exec(std::istream& IStrm4Cmds, Set4LibInterface& Interf) {
+    std::string str;
+    int begin = 0;
+    // Czekaj na pojawienie się słowa Begin_Parallel_Actions
+    while (IStrm4Cmds >> str) {
+        if (str == "Begin_Parallel_Actions") {
+          begin = 1;
+            break;
+        }
+    }
+
+    // Dopóki nie napotkasz słowa End_Parallel_Actions
+    while (IStrm4Cmds >> str) {
+        if (str == "End_Parallel_Actions") {
+            std::vector<std::thread> threads;
+
+            if (InterpList.empty()){
+              std::cerr << "Nie udało się utworzyć interpreterow" << endl;
+              exit(-1);
+            }
+
+            for (auto& interp : InterpList) {
+               threads.emplace_back(ExecuteInterpreter, interp, std::ref(rScn), sMobObjName, std::ref(rComChann));
+            }
+
+            for (auto& thread : threads) {
+                thread.join();
+            }
+
+            for (auto& interp : InterpList) {
+                delete interp;
+            }
+            InterpList.clear();
+            begin = 0;
+        }
+        if (str == "Begin_Parallel_Actions"){
+          begin = 1;
+        }
+
+        if(begin == 1){
+          std::list<AbstractInterp4Command*> InterpList;
+
+        AbstractInterp4Command* rInterp = nullptr;
+
+        // Tworzenie instancji interpretera w zależności od rodzaju akcji
+        if (str == "Move") {
+            rInterp = Interf.CreateCmd("libInterp4Move.so");
+        } else if (str == "Set") {
+            rInterp = Interf.CreateCmd("libInterp4Set.so");
+        } else if (str == "Pause") {
+            rInterp = Interf.CreateCmd("libInterp4Pause.so");
+        } else if (str == "Rotate") {
+            rInterp = Interf.CreateCmd("libInterp4Rotate.so");
+        } else {
+            std::cerr << "Błąd! Nie udało się znaleźć odpowiedniej wtyczki" << std::endl;
+            return false;
+        }
+
+        if (rInterp) {
+            // Wczytywanie parametrów polecenia
+            if (rInterp->ReadParams(IStrm4Cmds)) {
+                InterpList.push_back(rInterp);
+            } else {
+                std::cerr << "Nie udało się wczytać parametrów polecenia" << std::endl;
+                return false;
+            }
+        } else {
+            std::cerr << "Błąd! Nie udało się utworzyć instancji interpretera" << std::endl;
+            return false;
+        }
+    }
+    }
+
+    return true;
+}
+void ExecuteInterpreter(AbstractInterp4Command* interpreter, AbstractScene      &rScn, 
+                           const char         *sMobObjName,
+			   AbstractComChannel &rComChann) {
+    interpreter->ExecCmd(rScn, sMobObjName, rComChann);
+}
