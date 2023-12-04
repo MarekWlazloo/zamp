@@ -28,10 +28,16 @@
 #include <xercesc/sax2/DefaultHandler.hpp>
 #include <xercesc/util/XMLString.hpp>
 #include "xmlinterp.hh"
-// asdwqe
+#include <chrono>
+#include <mutex>
+#include <thread>
+#include <fstream>
+
 #define LINE_SIZE 500
 using namespace std;
 using namespace xercesc;
+
+ 
 
 
 bool ExecPreprocesor(const char *NazwaPliku, istringstream &IStrm4Cmds)
@@ -230,9 +236,90 @@ bool ReadFile(const char* sFileName, Configuration &rConfig)
    return true;
 }
 
+
+std::string FormatNumericList(const std::string& numericList) {
+    std::string result = "(";
+
+    std::istringstream iss(numericList);
+    std::string number;
+
+    while (iss >> number) {
+        result += number;
+
+        // Dodaj przecinek, jeśli to nie ostatni element
+        if (iss >> std::ws && iss.peek() != ')') {
+            result += ',';
+        }
+    }
+
+    result += ')';
+    return result;
+}
+
+// Funkcja generująca napis XML
+string GenerateConfigCmds(Configuration& Config) {
+    std::ostringstream configCmds;
+    configCmds << "Clear\n";
+
+    auto nameIt = Config.ObjNames.begin();
+    auto shiftIt = Config.ObjShift.begin();
+    auto scaleIt = Config.ObjScale.begin();
+    auto rotXYZIt = Config.ObjRotXYZ_deg.begin();
+    auto transIt = Config.ObjTrans_m.begin();
+    auto rgbIt = Config.ObjRGB.begin();
+
+    while (nameIt != Config.ObjNames.end()) {
+        configCmds << "AddObj Name=" << *nameIt << " RGB=" << FormatNumericList(*rgbIt)
+                   << " Scale=" << FormatNumericList(*scaleIt)
+                   << " Shift=" << FormatNumericList(*shiftIt)
+                   << " RotXYZ_deg=" << FormatNumericList(*rotXYZIt)
+                   << " Trans_m=" << FormatNumericList(*transIt) << "\n";
+
+        ++nameIt;
+        ++shiftIt;
+        ++scaleIt;
+        ++rotXYZIt;
+        ++transIt;
+        ++rgbIt;
+    }
+
+
+    string cos = configCmds.str();  
+    return cos;
+}
+
+
+mutex Mux;
+bool ExecProg(const char* Sfile){
+  {
+    lock_guard<mutex> Guard(Mux);
+    cout << "Program do manipulacji obiektami: " << Sfile << endl;
+
+  }
+  ifstream IStrm(Sfile);
+  string line;
+  while (IStrm >> line){
+    cout << line << endl;
+    this_thread::sleep_for(200ms);
+  }
+  return true;
+}
+
+void Fun4Thread(const char* progname){
+  if(ExecProg(progname)) cout << "OK" << endl;
+  else cout << "Failed" << endl;
+}
+
+
 int main(int argc, char **argv)
 {
-    Configuration Config;
+  /*thread Th1(Fun4Thread, "prog1.cmd");
+  thread Th2(Fun4Thread, "prog2.cmd");
+  Th1.join();
+  Th2.join();*/
+
+  
+  Configuration Config;
 
   Set4LibInterface Libs;
   Libs.init();
@@ -270,7 +357,7 @@ int main(int argc, char **argv)
             cout << "  " << lib << endl;
         }
         cout << "SHIFT" << endl;
-                for (const auto& lib : Config.ObjShift)
+              for (const auto& lib : Config.ObjShift)
         {
           
             cout << "  " << lib << endl;
@@ -282,7 +369,7 @@ int main(int argc, char **argv)
         }
 
 
-  /*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
+ 
   
   cout << "Port: " << PORT << endl;
   Scene               Scn;
@@ -294,29 +381,38 @@ int main(int argc, char **argv)
   //  thread   Thread4Sending(Fun_Sender, Socket4Sending, &ClientSender);
 
   thread   Thread4Sending(Fun_CommunicationThread,&ClientSender);
-  const char *sConfigCmds =
+
+
+cout << "UWAGASAFAWKMEMWQOKEMIWQNEQW" << endl;
+string str = GenerateConfigCmds(Config);
+std::vector<char> Buffer(str.begin(), str.end());
+Buffer.push_back('\0');
+const char *sConfigCmds = Buffer.data();
+
+ /*const char *sConfigCmds =
 "Clear\n"
 "AddObj Name=Podstawa1 RGB=(20,200,200) Scale=(4,2,1) Shift=(0.5,0,0) RotXYZ_deg=(0,-45,20) Trans_m=(-1,3,0)\n"
 "AddObj Name=Podstawa1.Ramie1 RGB=(200,0,0) Scale=(3,3,1) Shift=(0.5,0,0) RotXYZ_deg=(0,-45,0) Trans_m=(4,0,0)\n"
 "AddObj Name=Podstawa1.Ramie1.Ramie2 RGB=(100,200,0) Scale=(2,2,1) Shift=(0.5,0,0) RotXYZ_deg=(0,-45,0) Trans_m=(3,0,0)\n"       
 "AddObj Name=Podstawa2 RGB=(20,200,200) Scale=(4,2,1) Shift=(0.5,0,0) RotXYZ_deg=(0,-45,0) Trans_m=(-1,-3,0)\n"
 "AddObj Name=Podstawa2.Ramie1 RGB=(200,0,0) Scale=(3,3,1) Shift=(0.5,0,0) RotXYZ_deg=(0,-45,0) Trans_m=(4,0,0)\n"
-"AddObj Name=Podstawa2.Ramie1.Ramie2 RGB=(100,200,0) Scale=(2,2,1) Shift=(0.5,0,0) RotXYZ_deg=(0,-45,0) Trans_m=(3,0,0)\n";
+"AddObj Name=Podstawa2.Ramie1.Ramie2 RGB=(100,200,0) Scale=(2,2,1) Shift=(0.5,0,0) RotXYZ_deg=(0,-45,0) Trans_m=(3,0,0)\n";*/
 
-
+ 
   cout << "Konfiguracja:" << endl;
   cout << sConfigCmds << endl;
-  
+ 
   Send(Socket4Sending,sConfigCmds);
   
-
+  /*
   cout << "Akcja:" << endl;    
   for (GeomObject &rObj : Scn._Container4Objects) {
     usleep(20000);
     ChangeState(Scn);
     Scn.MarkChange();
     usleep(100000);
-  }
+  }*/
+  
   usleep(100000);
 
   //-------------------------------------
@@ -367,12 +463,16 @@ int main(int argc, char **argv)
 */
 }
 /*
-TWORZENIE LISTY Z NAZWAMI BILBIOTEK,
-TWORZENIE LISTY NAPISÓW (POLECENIA E PLIKU XML) I UDOSTEPNIANIE ICH KOLEJNYM KLASOM
-ZAPAMIETYWANIE OBJEKTOW W JEDNYM NAPISIE (STRING) --> NASTEPNIE ADD
-
-SERWER KOMPILUJE SIE Z QT5, Z QT6 ALE JEST PROBLEM
-
-wczytywanie bibliotek podanych w pliku konfiguracyjnych,
+Diagram od bkr
+czytaj slowo do napotkania -->begin parralel actions
+czytaj dalej, JESLI nic nie ma to błąd
+ogolnie to czytaj az do END parallel actions
+PO BEGIN ->>>>>> po drodze diagram 1 od
+uwtorz instacje
+dodaj do kolekcji instancje
+wczytaj parametry polecenia
+wykonaj polecenie w osobnym watku 
+ROBISZ TO DO CZASU NAPOTKANIA NA end_parallel_actions
+gdy napotkasz na end parallel to poczekaj na wykonanie wszystkich wątków i usun kolekcje interpreterow
 
 */

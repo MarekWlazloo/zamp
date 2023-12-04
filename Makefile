@@ -24,7 +24,7 @@ LDFLAGS=-Wall
 
 
 interp: obj/main.o obj/xmlinterp.o
-	g++ ${LDFLAGS} -o interp  obj/main.o  obj/xmlinterp.o -ldl -lxerces-c
+	g++ ${LDFLAGS} -o interp  obj/main.o  obj/xmlinterp.o -ldl -lxerces-c -lpthread
 
 obj/xmlinterp.o: src/xmlinterp.cpp inc/xmlinterp.hh inc/Configuration.hh
 	g++ -c ${CPPFLAGS} -o obj/xmlinterp.o src/xmlinterp.cpp

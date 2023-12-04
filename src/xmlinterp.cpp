@@ -81,6 +81,52 @@ rConfig.libs.push_back(copiedLibName);
  * to pobiera wartości atrybutów (w postaci napisów) i przekazuje ...
  * \param[in] rAttrs - atrybuty elementu XML \p "Cube".
  */
+/**/
+void XMLInterp4Config::ProcessCubeAttrs(const xercesc::Attributes& rAttrs)
+{
+    if (rAttrs.getLength() < 1) {
+        cerr << "Zla ilosc atrybutow dla \"Cube\"" << endl;
+        exit(1);
+    }
+
+    XMLSize_t Index = 0;
+
+    // Sprawdzamy, czy pierwszy atrybut to "Name"
+    if (strcmp(xercesc::XMLString::transcode(rAttrs.getQName(Index)), "Name") != 0) {
+        cerr << "Zly atrybut dla \"Cube\"" << endl;
+        exit(1);
+    }
+
+    const char* sValue_Name = xercesc::XMLString::transcode(rAttrs.getValue(Index));
+    rConfig.ObjNames.push_back(sValue_Name);
+
+    // petla po atrybutach
+    for (Index = 1; Index < rAttrs.getLength(); ++Index) {
+        const char* sName_Attr = xercesc::XMLString::transcode(rAttrs.getQName(Index));
+        const char* sValue_Attr = xercesc::XMLString::transcode(rAttrs.getValue(Index));
+
+        // szukanie atrybutu i dodawanie do odpowiedniej listy
+        if (strcmp(sName_Attr, "Shift") == 0) {
+            rConfig.ObjShift.push_back(sValue_Attr);
+        } else if (strcmp(sName_Attr, "Scale") == 0) {
+            rConfig.ObjScale.push_back(sValue_Attr);
+        } else if (strcmp(sName_Attr, "RotXYZ_deg") == 0) {
+            rConfig.ObjRotXYZ_deg.push_back(sValue_Attr);
+        } else if (strcmp(sName_Attr, "Trans_m") == 0) {
+            rConfig.ObjTrans_m.push_back(sValue_Attr);
+        } else if (strcmp(sName_Attr, "RGB") == 0) {
+            rConfig.ObjRGB.push_back(sValue_Attr);
+        }
+
+        // Zwolnij zaalokowaną pamięć
+
+    }
+
+    // Zwolnij zaalokowaną pamięć
+ 
+}
+/*
+
 void XMLInterp4Config::ProcessCubeAttrs(const xercesc::Attributes& rAttrs)
 {
     if (rAttrs.getLength() < 1) {
@@ -99,18 +145,17 @@ void XMLInterp4Config::ProcessCubeAttrs(const xercesc::Attributes& rAttrs)
 
     char* sValue_Name = xercesc::XMLString::transcode(rAttrs.getValue(Index));
 
-    // Kopiujemy nazwę obiektu do listy ObjNames
+    // obiekt name wsyetpuje na pewno
     char* name = new char[strlen(sValue_Name) + 1];
     strcpy(name, sValue_Name);
     rConfig.ObjNames.push_back(name);
 
-    // Przechodzimy przez resztę atrybutów
+    // petla po atrybutach
     for (Index = 1; Index < rAttrs.getLength(); ++Index) {
         char* sName_Attr = xercesc::XMLString::transcode(rAttrs.getQName(Index));
         char* sValue_Attr = xercesc::XMLString::transcode(rAttrs.getValue(Index));
 
-        // Tutaj możesz zastosować bardziej czytelną logikę, aby sprawdzić każdy atrybut
-        // i dodać wartość do odpowiedniej listy
+      // szukanie atrybutu i dodawanie do odpowiedniej listy
 
         if (strcmp(sName_Attr, "Shift") == 0) {
             char* copy = new char[strlen(sValue_Attr) + 1];
@@ -134,16 +179,16 @@ void XMLInterp4Config::ProcessCubeAttrs(const xercesc::Attributes& rAttrs)
             rConfig.ObjRGB.push_back(copy);
         }
 
-        // Zwolnienie zaalokowanej pamięci
+        
         xercesc::XMLString::release(&sName_Attr);
         xercesc::XMLString::release(&sValue_Attr);
     }
 
-    // Zwolnienie zaalokowanej pamięci
+
     xercesc::XMLString::release(&sName_Name);
     xercesc::XMLString::release(&sValue_Name);
 }
-
+*/
 
 
 
