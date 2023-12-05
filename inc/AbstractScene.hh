@@ -29,9 +29,12 @@ virtual ~AbstractScene() {}
 }
 
 std::shared_ptr<AbstractMobileObj> FindMobileObject(const std::string &mobileObjectName) const
-{
-    return mobileObjMap.at(mobileObjectName);
-}
+    auto it = mobileObjMap.find(mobileObjectName);
+    if (it != mobileObjMap.end()) {
+        return it->second;
+    } else {
+        return nullptr;
+    }
 
 
 private:
