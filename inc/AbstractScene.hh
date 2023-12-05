@@ -19,27 +19,23 @@
   * która zawiera kolekcję obiektów mobilnych.
   */
   class AbstractScene {
-       public:
 
-    virtual ~AbstractScene() {}
-    
-       /*!
-        * \brief Wyszukuje obiekt o podanej pełnej kwalifikowanej nazwie.
-	*
-	*  Wyszukuje obiekt o podanej pełnej kwalifikowanej nazwie.
-	*  \param[in] sName - pełna kwalifikowana nazwa obiektu.
-	*  \return Jeśli obiekt zostanie znaleziony, to zwracany jest wskaźnik
-	*          na niego. W przypadku przeciwnym zwracany jest wskaźnik \p nullptr.
-        */
-        virtual AbstractMobileObj*  FindMobileObj(const char *sName) = 0;
-       /*!
-        * \brief Dodaje do sceny nowy obiekt.
-	*
-	*  Dodaje do sceny nowy obiekt. Obiekt ten musi mieć poprawnie
-	*  skonstruowaną pełną kwalifikowaną nazwę.
-	*  \param[in] pMobObj - wskaźnik na istniejący obiekt.
-        */
-        virtual void AddMobileObj(AbstractMobileObj *pMobObj) = 0;
+public:
+virtual ~AbstractScene() {}
+
+ void AddMobileObj(std::shared_ptr<AbstractMobileObj> mobileObj) // TO MOZE BYC HUJOWE
+{
+    mobileObjMap.emplace(mobileObj->GetName(), mobileObj);
+}
+
+std::shared_ptr<AbstractMobileObj> FindMobileObject(const std::string &mobileObjectName) const
+{
+    return mobileObjMap.at(mobileObjectName);
+}
+
+
+private:
+    std::map<std::string, std::shared_ptr<AbstractMobileObj>> mobileObjMap;
   };
 
 #endif

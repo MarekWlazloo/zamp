@@ -341,6 +341,9 @@ int main(int argc, char **argv)
   cout << "Wczytanie parametrów z pliku do odpowiednich wtyczek, wyświetlenie wczytanych parametrów" << endl;
   cout << endl;
   ExecActions(IStrm4Cmds,pCmdS, Libs);
+  cout << "Port: " << PORT << endl;
+  Scene               Scn;
+  int                 Socket4Sending;  
 /*
     if (!ReadFile("config/config.xml", Config)) {
         cout << "Błąd przetwarzania pliku XML." << endl;

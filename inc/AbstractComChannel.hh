@@ -19,6 +19,7 @@
     * Interfejs ma pozwalać na bezpieczną komunikację w programie wielowątkowym.
     */
     class AbstractComChannel {
+      mutex comBlock;
      public:
 
       virtual ~AbstractComChannel() {}
@@ -40,11 +41,11 @@
       /*!
        * \brief Zamyka dostęp gniazda.
        */
-       virtual void LockAccess() = 0;
+       virtual void LockAccess() {comBlock.lock();}
       /*!
        * \brief Otwiera dostęp do gniazda.
        */
-       virtual void UnlockAccess() = 0;
+       virtual void UnlockAccess() { comBlock.unlock(); }
        /*!
         * \brief Udostępnia mutex w trybie modyfikacji.
         *
