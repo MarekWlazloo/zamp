@@ -9,8 +9,18 @@
  *  Wyznacza ona niezbędny interfejs klas pochodnych.
  */
 
+#define PORT 6217
 
+// #define DEBUG
+
+#include <cstring>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 #include <mutex>
+#include "AbstractScene.hh"
 
    /*!
     * \brief Definiuje interfejs kanału komunikacyjnego z serwerem graficznym.
@@ -19,43 +29,74 @@
     * Interfejs ma pozwalać na bezpieczną komunikację w programie wielowątkowym.
     */
     class AbstractComChannel {
-      mutex comBlock;
-     public:
+  std::mutex comBlock;
+  int& socket;
 
-      virtual ~AbstractComChannel() {}
-      
-      /*!
-       * \brief Inicjalizuje destryptor gniazda.
-       *
-       * Inicjalizuje destryptora pliku skojarzonego z połączeniem sieciowym z serwerem.
-       * \param[in] Socket - zawiera poprawny deskryptor.
-       */
-       virtual void Init(int Socket) = 0;
-      /*!
-       * \brief Udostępnia deskryptor pliku skojarzonego z połączeniem sieciowym z serwerem.
-       *
-       *  Udostępnia deskryptor skojarzonego z połączeniem sieciowym z serwerem.
-       * \return Deskryptor pliku.
-       */
-       virtual int GetSocket() const = 0;
-      /*!
-       * \brief Zamyka dostęp gniazda.
-       */
-       virtual void LockAccess() {comBlock.lock();}
-      /*!
-       * \brief Otwiera dostęp do gniazda.
-       */
-       virtual void UnlockAccess() { comBlock.unlock(); }
-       /*!
-        * \brief Udostępnia mutex w trybie modyfikacji.
-        *
-        *  Udostępnia mutex w trybie modyfikacji.
-        *  Jest to przydatne, gdy planowany jest inny typ zamknięcie,
-        *  np. poprzez klasę std::lock_gaurd, która daje możliwość
-        *  bezpieczniejszego zamknięcia.
-        */
-       virtual std::mutex &UseGuard();
-    };
+public:
+  AbstractComChannel(int& Socket) : socket(Socket) {}
+
+  virtual ~AbstractComChannel() {}
+
+    virtual void Init(int& Socket) {
+        socket = Socket;
+    }
+
+    virtual int& GetSocket() const {
+        return socket;
+    }
+
+  virtual void LockAccess() {
+    comBlock.lock();
+  }
+
+  virtual void UnlockAccess() {
+    comBlock.unlock();
+  }
+
+  virtual std::mutex &UseGuard() {
+    return comBlock;
+  }
+};
+    bool send(int Sk2Server, const char *msg)
+    {
+        ssize_t sent_count;
+        ssize_t to_send = (ssize_t)strlen(msg);
+        while ((sent_count = write(Sk2Server, msg, to_send)) > 0)
+        {
+            to_send -=sent_count;
+            msg += sent_count;
+        }
+        if (sent_count < 0)
+        {
+            std::cerr << "ERROR sending" << std::endl;
+            return false;
+        }
+        return true;
+    }
+
+    bool openConnection(int &Sk2Server)
+    {
+        struct sockaddr_in serverAdress;
+        bzero((char *)&serverAdress, sizeof(serverAdress));
+        serverAdress.sin_family=AF_INET;
+        serverAdress.sin_addr.s_addr=inet_addr("127.0.0.1");
+        serverAdress.sin_port=htons(PORT);
+
+        Sk2Server = socket(AF_INET,SOCK_STREAM,0);
+
+        if(Sk2Server<0)
+        {
+            std::cerr << "Cant open socket" << std::endl;
+            return false;
+        }
+
+        if(connect(Sk2Server,(struct sockaddr*)&serverAdress,sizeof(serverAdress))<0)
+        {
+            std::cerr<<"Cant establish connection"<<std::endl;
+            return false;
+        }
+        return true;
+    }
 
 
 #endif

@@ -291,28 +291,125 @@ string GenerateConfigCmds(Configuration& Config) {
     return cos;
 }
 
+void ExecuteInterpreter(AbstractInterp4Command* interpreter, AbstractScene      &rScn, 
+                           const char         *sMobObjName,
+			   AbstractComChannel &rComChann) {
+    interpreter->ExecCmd(rScn,sMobObjName, rComChann);
+}
+bool Exec(std::istream& IStrm4Cmds, Set4LibInterface& Interf, AbstractScene &rScn, AbstractComChannel& rComChann,  AbstractInterp4Command* &rInterp, const char *sMobObjName, const char *sConfigCmds,Configuration &Config) {
+    std::string str;
+    
+    std::list<AbstractInterp4Command*> InterpList; // Otworz komunikacje
+    if (openConnection(rComChann.GetSocket())) {
+        std::cout << "Udało się połączyć z serwerem!" << std::endl;
+    } else {
+        std::cerr << "Nie udało się połączyć z serwerem!" << std::endl;
+    }
+        auto it1 = Config.ObjTrans_m.begin();
+        auto it2 = Config.ObjRotXYZ_deg.begin();
+        auto it3 = Config.ObjNames.begin();
+                while (it1 != Config.ObjTrans_m.end()) {
+                  AbstractMobileObj* obj = new AbstractMobileObj();
+            std::istringstream ss1(*it1);
+            std::istringstream ss2(*it2);
+            std::istringstream ss3(*it3);
 
-mutex Mux;
-bool ExecProg(const char* Sfile){
-  {
-    lock_guard<mutex> Guard(Mux);
-    cout << "Program do manipulacji obiektami: " << Sfile << endl;
+            Vector3D pos;
+            double roll, pitch, yaw;
+            string name;
 
-  }
-  ifstream IStrm(Sfile);
-  string line;
-  while (IStrm >> line){
-    cout << line << endl;
-    this_thread::sleep_for(200ms);
-  }
-  return true;
+            // Przypisanie wartości do zmiennych z obu list
+            if ((ss1 >> pos[0] >> pos[1] >> pos[2]) && (ss2 >> roll >> pitch >> yaw)) {
+              ss3 >> name;
+            } else {
+                // Błąd parsowania
+                std::cerr << "Błąd parsowania dla stringów: " << *it1 << " i " << *it2 << std::endl;
+            }
+
+            ++it1;
+            ++it2;
+            ++it3;
+                 obj->lockObj();
+ obj->SetName(name);
+ obj->SetPosition_m(pos);
+ obj->SetAng_Roll_deg(roll);
+ obj->SetAng_Pitch_deg(pitch);
+ obj->SetAng_Yaw_deg(yaw);
+ obj->unlockObj();
+ rScn.AddMobileObj(obj);
+        }
+
+     send(rComChann.GetSocket() ,sConfigCmds);
+    while (IStrm4Cmds >> str) {
+        if (str == "Begin_Parallel_Actions") {
+            break;
+        }
+    }
+    // Dopóki nie napotkasz słowa End_Parallel_Actions
+    while (IStrm4Cmds >> str) {
+      cout << str << endl;
+        if (str == "End_Parallel_Actions") {
+              std::list<std::thread> List4Th;
+      //        cout << "11111" << endl;
+            if (InterpList.empty()){
+              std::cerr << "Nie udało się utworzyć interpreterow" << endl;
+              exit(-1);
+            }
+
+//cout << "22222" << endl;
+for (auto& Interp : InterpList) {
+    std::thread Th(ExecuteInterpreter, Interp, std::ref(rScn), sMobObjName, std::ref(rComChann));
+    List4Th.push_back(std::move(Th));   
 }
 
-void Fun4Thread(const char* progname){
-  if(ExecProg(progname)) cout << "OK" << endl;
-  else cout << "Failed" << endl;
-}
+//cout << "33333" << endl;
+  for (std::thread &rTh : List4Th) {
+    if (rTh.joinable()) rTh.join();
+    //sleep(1);
+  }
+  //sleep(5);
+  cout << "4444" << endl;
+  cout <<"============================"<< endl;
+   //cout << InterpList.size() << endl;
+  //cout << List4Th.size() << endl;
 
+            List4Th.clear();
+            InterpList.clear(); 
+        }
+AbstractInterp4Command* rInterp = nullptr;
+        if(str == "Move" || str == "Set" || str == "Rotate" || str == "Pause"){
+        
+
+        // Tworzenie instancji interpretera w zależności od rodzaju akcji
+        if (str == "Move") {
+            rInterp = Interf.CreateCmd("libInterp4Move.so");
+        } else if (str == "Set") {
+            rInterp = Interf.CreateCmd("libInterp4Set.so");
+        } else if (str == "Pause") {
+            rInterp = Interf.CreateCmd("libInterp4Pause.so");
+        } else if (str == "Rotate") {
+            rInterp = Interf.CreateCmd("libInterp4Rotate.so");
+        } else {
+           // std::cerr << "Błąd! Nie udało się znaleźć odpowiedniej wtyczki" << std::endl;
+        }
+
+        if (rInterp) {
+            // Wczytywanie parametrów polecenia
+            if (rInterp->ReadParams(IStrm4Cmds)) {
+                InterpList.push_back(rInterp);
+                cout << "Parametry dla " << str << " załadowane" << endl;
+            } else {
+                std::cerr << "Nie udało się wczytać parametrów polecenia" << std::endl;
+            }
+        } else {
+            std::cerr << "Błąd! Nie udało się utworzyć instancji interpretera" << std::endl;
+        }
+    }
+    }
+    
+
+    return true;
+}
 
 int main(int argc, char **argv)
 {
@@ -336,14 +433,28 @@ int main(int argc, char **argv)
     cerr << "ERROR" << endl;
     return 2;
   }
-    AbstractInterp4Command *pCmdS = nullptr;
 
-  cout << "Wczytanie parametrów z pliku do odpowiednich wtyczek, wyświetlenie wczytanych parametrów" << endl;
-  cout << endl;
-  ExecActions(IStrm4Cmds,pCmdS, Libs);
-  cout << "Port: " << PORT << endl;
-  Scene               Scn;
-  int                 Socket4Sending;  
+
+    if (!ReadFile("config/config.xml", Config)) {
+        cout << "Błąd przetwarzania pliku XML." << endl;
+        return 1;
+    }
+    string str = GenerateConfigCmds(Config);
+std::vector<char> Buffer(str.begin(), str.end());
+Buffer.push_back('\0');
+const char *sConfigCmds = Buffer.data();
+cout << sConfigCmds << endl;
+
+  AbstractInterp4Command *pCmdS = nullptr;
+  AbstractScene               Scn;
+  int socket;
+  AbstractComChannel comChannel(socket);
+  const char* sMobObjName = "cosik";
+
+   Exec(IStrm4Cmds, Libs, Scn, comChannel, pCmdS, sMobObjName, sConfigCmds, Config);
+
+
+    return 0;
 /*
     if (!ReadFile("config/config.xml", Config)) {
         cout << "Błąd przetwarzania pliku XML." << endl;
@@ -392,60 +503,7 @@ int main(int argc, char **argv)
 
  
   
-  cout << "Port: " << PORT << endl;
-  Scene               Scn;
-  int                 Socket4Sending;   
 
-  if (!OpenConnection(Socket4Sending)) return 1;
-  
-  Sender   ClientSender(Socket4Sending,&Scn);
-  //  thread   Thread4Sending(Fun_Sender, Socket4Sending, &ClientSender);
-
-  thread   Thread4Sending(Fun_CommunicationThread,&ClientSender);
-
-
-cout << "UWAGASAFAWKMEMWQOKEMIWQNEQW" << endl;
-string str = GenerateConfigCmds(Config);
-std::vector<char> Buffer(str.begin(), str.end());
-Buffer.push_back('\0');
-const char *sConfigCmds = Buffer.data();*/
-
- /*const char *sConfigCmds =
-"Clear\n"
-"AddObj Name=Podstawa1 RGB=(20,200,200) Scale=(4,2,1) Shift=(0.5,0,0) RotXYZ_deg=(0,-45,20) Trans_m=(-1,3,0)\n"
-"AddObj Name=Podstawa1.Ramie1 RGB=(200,0,0) Scale=(3,3,1) Shift=(0.5,0,0) RotXYZ_deg=(0,-45,0) Trans_m=(4,0,0)\n"
-"AddObj Name=Podstawa1.Ramie1.Ramie2 RGB=(100,200,0) Scale=(2,2,1) Shift=(0.5,0,0) RotXYZ_deg=(0,-45,0) Trans_m=(3,0,0)\n"       
-"AddObj Name=Podstawa2 RGB=(20,200,200) Scale=(4,2,1) Shift=(0.5,0,0) RotXYZ_deg=(0,-45,0) Trans_m=(-1,-3,0)\n"
-"AddObj Name=Podstawa2.Ramie1 RGB=(200,0,0) Scale=(3,3,1) Shift=(0.5,0,0) RotXYZ_deg=(0,-45,0) Trans_m=(4,0,0)\n"
-"AddObj Name=Podstawa2.Ramie1.Ramie2 RGB=(100,200,0) Scale=(2,2,1) Shift=(0.5,0,0) RotXYZ_deg=(0,-45,0) Trans_m=(3,0,0)\n";*/
-
- 
-  cout << "Konfiguracja:" << endl;
-  cout << sConfigCmds << endl;
- 
-  Send(Socket4Sending,sConfigCmds);
-  
-  /*
-  cout << "Akcja:" << endl;    
-  for (GeomObject &rObj : Scn._Container4Objects) {
-    usleep(20000);
-    ChangeState(Scn);
-    Scn.MarkChange();
-    usleep(100000);
-  }*/
-  
-  usleep(100000);
-
-  //-------------------------------------
-  // Należy pamiętać o zamknięciu połączenia.
-  // Bez tego serwer nie będzie reagował na
-  // nowe połączenia.
-  //
-  cout << "Close\n" << endl; // To tylko, aby pokazac wysylana instrukcje
-  Send(Socket4Sending,"Close\n");
-  ClientSender.CancelCountinueLooping();
-  Thread4Sending.join();
-  close(Socket4Sending);
 
 
 /*#######################################################################################*/
@@ -493,83 +551,3 @@ ROBISZ TO DO CZASU NAPOTKANIA NA end_parallel_actions
 gdy napotkasz na end parallel to poczekaj na wykonanie wszystkich wątków i usun kolekcje interpreterow
 
 */
-bool Exec(std::istream& IStrm4Cmds, Set4LibInterface& Interf) {
-    std::string str;
-    int begin = 0;
-    // Czekaj na pojawienie się słowa Begin_Parallel_Actions
-    while (IStrm4Cmds >> str) {
-        if (str == "Begin_Parallel_Actions") {
-          begin = 1;
-            break;
-        }
-    }
-
-    // Dopóki nie napotkasz słowa End_Parallel_Actions
-    while (IStrm4Cmds >> str) {
-        if (str == "End_Parallel_Actions") {
-            std::vector<std::thread> threads;
-
-            if (InterpList.empty()){
-              std::cerr << "Nie udało się utworzyć interpreterow" << endl;
-              exit(-1);
-            }
-
-            for (auto& interp : InterpList) {
-               threads.emplace_back(ExecuteInterpreter, interp, std::ref(rScn), sMobObjName, std::ref(rComChann));
-            }
-
-            for (auto& thread : threads) {
-                thread.join();
-            }
-
-            for (auto& interp : InterpList) {
-                delete interp;
-            }
-            InterpList.clear();
-            begin = 0;
-        }
-        if (str == "Begin_Parallel_Actions"){
-          begin = 1;
-        }
-
-        if(begin == 1){
-          std::list<AbstractInterp4Command*> InterpList;
-
-        AbstractInterp4Command* rInterp = nullptr;
-
-        // Tworzenie instancji interpretera w zależności od rodzaju akcji
-        if (str == "Move") {
-            rInterp = Interf.CreateCmd("libInterp4Move.so");
-        } else if (str == "Set") {
-            rInterp = Interf.CreateCmd("libInterp4Set.so");
-        } else if (str == "Pause") {
-            rInterp = Interf.CreateCmd("libInterp4Pause.so");
-        } else if (str == "Rotate") {
-            rInterp = Interf.CreateCmd("libInterp4Rotate.so");
-        } else {
-            std::cerr << "Błąd! Nie udało się znaleźć odpowiedniej wtyczki" << std::endl;
-            return false;
-        }
-
-        if (rInterp) {
-            // Wczytywanie parametrów polecenia
-            if (rInterp->ReadParams(IStrm4Cmds)) {
-                InterpList.push_back(rInterp);
-            } else {
-                std::cerr << "Nie udało się wczytać parametrów polecenia" << std::endl;
-                return false;
-            }
-        } else {
-            std::cerr << "Błąd! Nie udało się utworzyć instancji interpretera" << std::endl;
-            return false;
-        }
-    }
-    }
-
-    return true;
-}
-void ExecuteInterpreter(AbstractInterp4Command* interpreter, AbstractScene      &rScn, 
-                           const char         *sMobObjName,
-			   AbstractComChannel &rComChann) {
-    interpreter->ExecCmd(rScn, sMobObjName, rComChann);
-}

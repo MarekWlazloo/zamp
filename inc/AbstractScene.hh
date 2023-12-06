@@ -3,6 +3,11 @@
 
 
 #include "AbstractMobileObj.hh"
+#include <memory>
+#include <map>
+#include <list>
+#include <mutex>
+
 
 /*!
  * \file 
@@ -18,27 +23,32 @@
   * Definiuje interfejs klasy modelującej scenę roboczą,
   * która zawiera kolekcję obiektów mobilnych.
   */
-  class AbstractScene {
-
+class AbstractScene {
+std::list<AbstractMobileObj*>  mobileObjList;
+mutex scnBlock;
 public:
-virtual ~AbstractScene() {}
-
- void AddMobileObj(std::shared_ptr<AbstractMobileObj> mobileObj) // TO MOZE BYC HUJOWE
-{
-    mobileObjMap.emplace(mobileObj->GetName(), mobileObj);
-}
-
-std::shared_ptr<AbstractMobileObj> FindMobileObject(const std::string &mobileObjectName) const
-    auto it = mobileObjMap.find(mobileObjectName);
-    if (it != mobileObjMap.end()) {
-        return it->second;
-    } else {
-        return nullptr;
+    virtual ~AbstractScene() {
+        // Usuń obiekty, których zarządzasz, gdy obiekt AbstractScene jest niszczony.
+        for (auto& obj : mobileObjList) {
+            delete obj;
+        }
+        mobileObjList.clear();
     }
 
+    void AddMobileObj(AbstractMobileObj* mobileObj) {
+        mobileObjList.push_back(mobileObj);
+    }
 
-private:
-    std::map<std::string, std::shared_ptr<AbstractMobileObj>> mobileObjMap;
+    AbstractMobileObj* FindMobileObject(const std::string& mobileObjectName) {
+        for (auto& obj : mobileObjList) {
+            if (obj->GetName() == mobileObjectName) {
+                return obj;
+            }
+        }
+        return nullptr;
+    }
+    void scnBlockfun(){scnBlock.lock();}
+    void scnUnlockfun(){scnBlock.unlock();}
   };
 
 #endif

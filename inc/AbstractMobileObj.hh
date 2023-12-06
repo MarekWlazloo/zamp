@@ -13,6 +13,7 @@
 #include <string>
 #include "Vector3D.hh"
 #include <mutex>
+using namespace std;
 
    /*!
     * \brief Definiuje interfejs dla obiektów mobilnych.
@@ -47,7 +48,7 @@
         *  zgodnie z ruchem wskazówek zegara wokół osi \e OY.
         *  \return Wartość kąta \e pitch wyrażona w stopniach.
         */
-       virtual double GetAng_Pitch_deg() const = 0; { return and_pich_deg; }
+       virtual double GetAng_Pitch_deg() { return and_pich_deg; }
        /*!
         * \brief Udostępnia wartość kąta \e yaw.
         *
@@ -55,7 +56,7 @@
         *  zgodnie z ruchem wskazówek zegara wokół osi \e OZ.
         *  \return Wartość kąta \e yaw wyrażona w stopniach.
         */
-       virtual double GetAng_Yaw_deg() const { return ang_yaw_deg; }
+       virtual double GetAng_Yaw_deg()  { return ang_yaw_deg; }
 
        /*!
         * \brief Zmienia wartość kąta \e roll.
@@ -102,7 +103,7 @@
         *  Zmienia nazwę obiektu, która go identyfikuje.
         *  \param[in]  sName - nowa nazwa obiektu.
         */
-        virtual void SetName(const char* sName) = 0;
+        virtual void SetName(std::string sName) {name = sName;}
        /*!
         * \brief Udostępnia nazwę obiektu.
         *  Udostępnia nazwę identyfikującą obiekt.
